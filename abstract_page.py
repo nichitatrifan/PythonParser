@@ -44,3 +44,6 @@ class AbstractPage():
     
     def find_element_by_ID(self, ID:str) -> WebElement:
         return self.driver.find_element_by_id(ID)
+    
+    def find_elements_by_class(self, class_name:str) -> list[WebElement]:
+        return self.driver.find_elements_by_class_name(class_name)

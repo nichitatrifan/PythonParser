@@ -5,61 +5,69 @@ from bs4 import BeautifulSoup
 
 from abstract_page import AbstractPage
 
+def parse_information():
+    # INITIALIZING SELENIUM DRIVERS
+    calorie_page = AbstractPage('https://health-diet.ru/calorie',['log-level=3', '--start-maximized'])
+    wait = WebDriverWait(calorie_page.driver, 10)
 
-calorie_page = AbstractPage('https://health-diet.ru/calorie',['log-level=3', '--start-maximized'])
-wait = WebDriverWait(calorie_page.driver, 10)
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'mzr-tree-node')))
+    categories_list = calorie_page.driver.find_elements_by_class_name('mzr-tree-node') 
 
-wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'mzr-tree-node')))
+    # open each category
+    for item in categories_list:
+        item.click()
 
-categories_list = calorie_page.driver.find_elements_by_class_name('mzr-tree-node') 
+    # saving and creating soup instance 
+    calorie_page.write_page_source('.\pages\source.html')
+    with open('.\pages\source.html', 'r', encoding='utf-8') as file:
+        soup = BeautifulSoup(file,'lxml')
 
-for item in categories_list:
-    item.click()
+    sibilings = soup.find(class_='mzr-tree-node').find_next_siblings(class_='mod-padding-element')
+    products_list_ans = []
+    for item in sibilings:
+        product_description = {'product':item.text, 'calories':'','protein':'',
+        'fat':'', 'carbs':'', 'water':'', 'cellulose':''}
+        products_list_ans.append(product_description)
 
-calorie_page.write_page_source('.\pages\source.html')
+    products_list = calorie_page.find_elements_by_class('mod-padding-element')
+    for i, item in enumerate(products_list):
+        
+        wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'mzr-tree-node')))
+        calorie_page.driver.execute_script("arguments[0].click();", item)
+        
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.uk-overflow-container')))
+        content = calorie_page.find_element_by_css('.uk-overflow-container') # mzr-block-content
+        
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.mzr-macronutrients-item-header-value')))
+        content_list = content.find_elements_by_css_selector('.mzr-macronutrients-item-header-value')
+        
+        products_list_ans[i]['calories'] = content_list[0].text
+        products_list_ans[i]['protein'] = content_list[1].text
+        products_list_ans[i]['fat'] = content_list[2].text
+        products_list_ans[i]['carbs'] = content_list[3].text
+        products_list_ans[i]['water'] = content_list[4].text
+        products_list_ans[i]['cellulose'] = content_list[5].text
 
-with open('.\pages\source.html', 'r', encoding='utf-8') as file:
-    soup = BeautifulSoup(file,'lxml')
+        if i == 20:
+            break
 
-sibilings = soup.find(class_='mzr-tree-node').find_next_siblings(class_='mod-padding-element')
+        calorie_page.find_element_by_css('svg[name="close"]').click()
+        
 
-products_list_ans = []
+    # for i, item in enumerate(products_list_ans):
+    #     print(item)
+    #     if i == 20:
+    #         break
 
-for item in sibilings:
-    # print(item.text)
-    product_description = {'product':item.text, 'calories':'','protein':'',
-    'fat':'', 'carbs':'', 'water':'', 'cellulose':''}
-    products_list_ans.append(product_description)
+    return products_list_ans
 
-products_list = calorie_page.driver.find_elements_by_class_name('mod-padding-element')
+def save_to_json(**kwargs):
+    pass
 
-for i, item in enumerate(products_list):
-    wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'mzr-tree-node')))
-    
-    calorie_page.driver.execute_script("arguments[0].click();", item)
-    
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.uk-overflow-container')))
-    content = calorie_page.find_element_by_css('.uk-overflow-container') # mzr-block-content
-    
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.mzr-macronutrients-item-header-value')))
-    content_list = content.find_elements_by_css_selector('.mzr-macronutrients-item-header-value')
-    
-    products_list_ans[i]['calories'] = content_list[0].text
-    products_list_ans[i]['protein'] = content_list[1].text
-    products_list_ans[i]['fat'] = content_list[2].text
-    products_list_ans[i]['carbs'] = content_list[3].text
-    products_list_ans[i]['water'] = content_list[4].text
-    products_list_ans[i]['cellulose'] = content_list[5].text
+def main():
+    products = parse_information()
+    save_to_json(products)
 
-    if i == 20:
-        break
-
-    calorie_page.find_element_by_css('svg[name="close"]').click()
-    
-
-for i, item in enumerate(products_list_ans):
-    print(item)
-    if i == 20:
-        break
-
+if __name__ == "__main__":
+    main()
 #calorie_page.stop_driver()
